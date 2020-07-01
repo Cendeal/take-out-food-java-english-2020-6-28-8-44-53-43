@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 
 /*
@@ -13,8 +14,54 @@ public class App {
     }
 
     public String bestCharge(List<String> inputs) {
-        //TODO: write code here
 
-        return null;
+        List<OrderItem> itemList = new ArrayList<>();
+        double promotionTotalPrice = 0;
+        double totalPrice = 0;
+        for (String input : inputs) {
+            String[] item_str = input.replaceAll(" ", "").split("x");
+            for (Item item : this.itemRepository.findAll()) {
+                if (item.getId().equals(item_str[0])) {
+                    OrderItem orderItem = new OrderItem(item, Integer.parseInt(item_str[1]));
+                    for (SalesPromotion salesPromotion : this.salesPromotionRepository.findAll()) {
+                        // find salesPromotion
+                        if (salesPromotion.getRelatedItems().indexOf(item.getId()) >= 0) {
+                            orderItem.setSalesPromotion(salesPromotion);
+                            break;
+                        }
+                    }
+                    // calculate the promotion
+                    if (orderItem.getSalesPromotion() != null) {
+                        promotionTotalPrice += item.getPrice() * 0.5 * orderItem.getTotal();
+                    }
+                    // calculate total price
+                    totalPrice += item.getPrice() * orderItem.getTotal();
+                    itemList.add(orderItem);
+                    break;
+                }
+            }
+        }
+        StringBuilder result = new StringBuilder("============= Order details =============\n");
+
+        for (OrderItem item : itemList) {
+            result.append(String.format("%s x %d = %.0f yuan\n", item.getItem().getName(), item.getTotal(), item.getTotal() * item.getItem().getPrice()));
+        }
+
+        result.append("-----------------------------------\n");
+        if (totalPrice >= 30 || promotionTotalPrice > 0) {
+            result.append("Promotion used:\n");
+            if (6 >= promotionTotalPrice) {
+                result.append("满30减6 yuan，saving 6 yuan\n");
+                promotionTotalPrice = 6;
+            } else {
+                result.append(String.format("Half price for certain dishes (Braised chicken，Cold noodles)，saving %.0f yuan\n", promotionTotalPrice));
+            }
+            result.append("-----------------------------------\n");
+        }
+
+        result.append(String.format("Total：%.0f yuan\n", totalPrice - promotionTotalPrice))
+                .append("===================================");
+        System.out.println(result);
+        return result.toString();
     }
 }
