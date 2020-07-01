@@ -1,4 +1,3 @@
-import java.util.ArrayList;
 import java.util.List;
 
 /*
@@ -14,40 +13,37 @@ public class App {
     }
 
     public String bestCharge(List<String> inputs) {
-
-        List<OrderItem> itemList = new ArrayList<>();
         double promotionTotalPrice = 0;
         double totalPrice = 0;
+        StringBuilder result = new StringBuilder("============= Order details =============\n");
+
         for (String input : inputs) {
             String[] item_str = input.replaceAll(" ", "").split("x");
+            //find item
             for (Item item : this.itemRepository.findAll()) {
                 if (item.getId().equals(item_str[0])) {
-                    OrderItem orderItem = new OrderItem(item, Integer.parseInt(item_str[1]));
+                    int currentItemTotal = Integer.parseInt(item_str[1]);
+                    SalesPromotion itemSalesPromotion = null;
+                    // find salesPromotion
                     for (SalesPromotion salesPromotion : this.salesPromotionRepository.findAll()) {
-                        // find salesPromotion
                         if (salesPromotion.getRelatedItems().indexOf(item.getId()) >= 0) {
-                            orderItem.setSalesPromotion(salesPromotion);
+                            itemSalesPromotion = salesPromotion;
                             break;
                         }
                     }
                     // calculate the promotion
-                    if (orderItem.getSalesPromotion() != null) {
-                        promotionTotalPrice += item.getPrice() * 0.5 * orderItem.getTotal();
+                    if (itemSalesPromotion != null) {
+                        promotionTotalPrice += item.getPrice() * 0.5 * currentItemTotal;
                     }
                     // calculate total price
-                    totalPrice += item.getPrice() * orderItem.getTotal();
-                    itemList.add(orderItem);
+                    totalPrice += item.getPrice() * currentItemTotal;
+                    result.append(String.format("%s x %d = %.0f yuan\n", item.getName(), currentItemTotal, currentItemTotal * item.getPrice()));
                     break;
                 }
             }
         }
-        StringBuilder result = new StringBuilder("============= Order details =============\n");
-
-        for (OrderItem item : itemList) {
-            result.append(String.format("%s x %d = %.0f yuan\n", item.getItem().getName(), item.getTotal(), item.getTotal() * item.getItem().getPrice()));
-        }
-
         result.append("-----------------------------------\n");
+        // math promotion to use
         if (totalPrice >= 30 || promotionTotalPrice > 0) {
             result.append("Promotion used:\n");
             if (6 >= promotionTotalPrice) {
@@ -58,10 +54,8 @@ public class App {
             }
             result.append("-----------------------------------\n");
         }
-
         result.append(String.format("Total：%.0f yuan\n", totalPrice - promotionTotalPrice))
                 .append("===================================");
-        System.out.println(result);
         return result.toString();
     }
 }
