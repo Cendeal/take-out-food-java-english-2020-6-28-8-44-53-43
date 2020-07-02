@@ -56,8 +56,8 @@ public class App {
         return totalPrice;
     }
 
-    public double deductWhenReach30SaveTotalSavePrice() {
-        return 6;
+    public double deductWhenReach30SaveTotalSavePrice(double totalPrice) {
+        return totalPrice>=30?6:0;
     }
 
     public double halfPriceSalesPromotionTotalSavePrice(List<OrderItem> orderItems) {
@@ -72,11 +72,11 @@ public class App {
     }
 
     public double usingPromotion(List<OrderItem> orderItems, StringBuilder result) {
-        double deduct = deductWhenReach30SaveTotalSavePrice();
-        double halfPrices = halfPriceSalesPromotionTotalSavePrice(orderItems);
         double totalPrice = calculateTotalPrice(orderItems);
+        double halfPrices = halfPriceSalesPromotionTotalSavePrice(orderItems);
+        double deduct = deductWhenReach30SaveTotalSavePrice(totalPrice);
         double actualSave = 0;
-        if (totalPrice >= 30 || halfPrices > 0) {
+        if (deduct > 0 || halfPrices > 0) {
             result.append("Promotion used:\n");
             if (deduct >= halfPrices) {
                 actualSave = deduct;
