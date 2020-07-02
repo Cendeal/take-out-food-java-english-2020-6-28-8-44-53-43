@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 
 /*
@@ -13,49 +14,79 @@ public class App {
     }
 
     public String bestCharge(List<String> inputs) {
-        double promotionTotalPrice = 0;
-        double totalPrice = 0;
         StringBuilder result = new StringBuilder("============= Order details =============\n");
+        List<OrderItem> orderItems = findOrderItemsByInputs(inputs);
+        orderItems.forEach(orderItem -> { result.append(orderItem.toString()); });
+        result.append("-----------------------------------\n");
+        double actualPrice = usingPromotion(orderItems, result);
+        result.append(String.format("Total：%.0f yuan\n", actualPrice))
+                .append("===================================");
+        return result.toString();
+    }
 
+    public List<OrderItem> findOrderItemsByInputs(List<String> inputs) {
+        List<OrderItem> orderItems = new ArrayList<>();
         for (String input : inputs) {
             String[] item_str = input.replaceAll(" ", "").split("x");
             //find item
             for (Item item : this.itemRepository.findAll()) {
                 if (item.getId().equals(item_str[0])) {
-                    int currentItemTotal = Integer.parseInt(item_str[1]);
-                    SalesPromotion itemSalesPromotion = null;
-                    // find salesPromotion
-                    for (SalesPromotion salesPromotion : this.salesPromotionRepository.findAll()) {
-                        if (salesPromotion.getRelatedItems().indexOf(item.getId()) >= 0) {
-                            itemSalesPromotion = salesPromotion;
-                            break;
-                        }
-                    }
-                    // calculate the promotion
-                    if (itemSalesPromotion != null) {
-                        promotionTotalPrice += item.getPrice() * 0.5 * currentItemTotal;
-                    }
-                    // calculate total price
-                    totalPrice += item.getPrice() * currentItemTotal;
-                    result.append(String.format("%s x %d = %.0f yuan\n", item.getName(), currentItemTotal, currentItemTotal * item.getPrice()));
+                    orderItems.add(new OrderItem(item, Integer.parseInt(item_str[1])));
                     break;
                 }
             }
         }
-        result.append("-----------------------------------\n");
-        // math promotion to use
-        if (totalPrice >= 30 || promotionTotalPrice > 0) {
+        return orderItems;
+    }
+
+    public SalesPromotion findSalePromotionByRelatedItem(Item item) {
+        for (SalesPromotion salesPromotion : this.salesPromotionRepository.findAll()) {
+            if (salesPromotion.getRelatedItems().indexOf(item.getId()) >= 0) {
+                return salesPromotion;
+            }
+        }
+        return null;
+    }
+
+    public double calculateTotalPrice(List<OrderItem> orderItems) {
+        double totalPrice = 0;
+        for (OrderItem orderItem : orderItems) {
+            totalPrice += orderItem.calculateAmount();
+        }
+        return totalPrice;
+    }
+
+    public double deductWhenReach30SaveTotalSavePrice() {
+        return 6;
+    }
+
+    public double halfPriceSalesPromotionTotalSavePrice(List<OrderItem> orderItems) {
+        double totalSavePrice = 0;
+        for (OrderItem orderItem : orderItems) {
+            SalesPromotion salesPromotion = findSalePromotionByRelatedItem(orderItem.getItem());
+            if (salesPromotion != null) {
+                totalSavePrice += orderItem.calculateAmount() * 0.5;
+            }
+        }
+        return totalSavePrice;
+    }
+
+    public double usingPromotion(List<OrderItem> orderItems, StringBuilder result) {
+        double deduct = deductWhenReach30SaveTotalSavePrice();
+        double halfPrices = halfPriceSalesPromotionTotalSavePrice(orderItems);
+        double totalPrice = calculateTotalPrice(orderItems);
+        double actualSave = 0;
+        if (totalPrice >= 30 || halfPrices > 0) {
             result.append("Promotion used:\n");
-            if (6 >= promotionTotalPrice) {
+            if (deduct >= halfPrices) {
+                actualSave = deduct;
                 result.append("满30减6 yuan，saving 6 yuan\n");
-                promotionTotalPrice = 6;
             } else {
-                result.append(String.format("Half price for certain dishes (Braised chicken，Cold noodles)，saving %.0f yuan\n", promotionTotalPrice));
+                actualSave = halfPrices;
+                result.append(String.format("Half price for certain dishes (Braised chicken，Cold noodles)，saving %.0f yuan\n", halfPrices));
             }
             result.append("-----------------------------------\n");
         }
-        result.append(String.format("Total：%.0f yuan\n", totalPrice - promotionTotalPrice))
-                .append("===================================");
-        return result.toString();
+        return totalPrice - actualSave;
     }
 }
